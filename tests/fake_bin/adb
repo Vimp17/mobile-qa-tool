@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Фейковый adb для тестов. Сценарий задаётся переменной FAKE_ADB_SCENARIO: ok | crash | nodevice | installfail."""
+import base64
+import os
+import sys
+import time
+
+SC = os.getenv("FAKE_ADB_SCENARIO", "ok")
+PKG = os.getenv("FAKE_ADB_PKG", "com.demo.shop")
+STATE = os.getenv("FAKE_ADB_STATE", "/tmp/fake_adb_state")
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+
+args = sys.argv[1:]
+if args[:1] == ["-s"]:
+    args = args[2:]
+
+
+def out(s=""):
+    sys.stdout.write(s + "\n")
+    sys.stdout.flush()
+
+
+if args[:1] == ["version"]:
+    out("Android Debug Bridge version 1.0.41 (fake)")
+elif args[:2] == ["devices", "-l"]:
+    out("List of devices attached")
+    if SC != "nodevice":
+        out("emulator-5554          device product:sdk_gphone64_x86_64 model:sdk_gphone64_x86_64 device:emu64xa transport_id:1")
+elif args[:1] == ["install"]:
+    if SC == "installfail":
+        out("Performing Streamed Install")
+        out("adb: failed to install x.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]")
+        sys.exit(1)
+    open(STATE, "w").write("installed")
+    out("Performing Streamed Install\nSuccess")
+elif args[:1] == ["uninstall"]:
+    out("Success")
+elif args[:3] == ["exec-out", "screencap", "-p"]:
+    sys.stdout.buffer.write(PNG)
+elif args[:2] == ["logcat", "-c"]:
+    pass
+elif args[:1] == ["logcat"]:
+    out("10-09 15:42:10.000  1000  1000 I QA_TOOL : STAGE: install")
+    out("10-09 15:42:11.000  1000  1000 I QA_TOOL : STAGE: launch")
+    if SC == "crash":
+        out("10-09 15:42:15.000  1000  1000 I QA_TOOL : STAGE: monkey")
+        out("10-09 15:42:17.204  8812  8812 E AndroidRuntime: FATAL EXCEPTION: main")
+        out(f"10-09 15:42:17.204  8812  8812 E AndroidRuntime: Process: {PKG}, PID: 8812")
+        out("10-09 15:42:17.204  8812  8812 E AndroidRuntime: java.lang.IllegalStateException: boom")
+        out("10-09 15:42:17.204  8812  8812 E AndroidRuntime: \tat com.demo.shop.Main.onCreate(Main.kt:10)")
+        out(f"10-09 15:42:18.000  1500  1520 E ActivityManager: ANR in {PKG} ({PKG}/.ui.MainActivity)")
+        out("10-09 15:42:18.000  1500  1520 E ActivityManager: Reason: Input dispatching timed out")
+    try:
+        while True:
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        pass
+elif args[:1] == ["shell"]:
+    cmd = " ".join(args[1:])
+    if cmd.startswith("getprop"):
+        name = cmd.split()[-1]
+        out({"ro.product.model": "sdk_gphone64_x86_64", "ro.build.version.release": "15", "ro.build.version.sdk": "35",
+             "ro.product.cpu.abilist": "x86_64,arm64-v8a", "ro.kernel.qemu": "1", "sys.boot_completed": "1"}.get(name, ""))
+    elif cmd.startswith("wm size"):
+        out("Physical size: 1080x2400")
+    elif cmd.startswith("pm list packages"):
+        if os.path.exists(STATE):
+            out(f"package:{PKG}")
+    elif cmd.startswith("am start -W"):
+        out(f"Starting: Intent {{ cmp={PKG}/.ui.MainActivity }}\nStatus: ok\nLaunchState: COLD\nTotalTime: 812\nWaitTime: 815\nComplete")
+    elif cmd.startswith("pidof"):
+        out("8812")
+    elif cmd.startswith("dumpsys activity activities"):
+        out(f"  topResumedActivity=ActivityRecord{{1 u0 {PKG}/.ui.MainActivity t12}}")
+    elif cmd.startswith("dumpsys meminfo"):
+        out("             TOTAL PSS:   145238            TOTAL RSS:   250000")
+    elif cmd.startswith("monkey -p"):
+        out(":Monkey: seed=42 count=50")
+        if SC == "crash":
+            out(f"// CRASH: {PKG} (pid 8812)\n// Short Msg: java.lang.IllegalStateException\n** Monkey aborted due to error.\nEvents injected: 23")
+        else:
+            out("Events injected: 50\n// Monkey finished")
+    else:
+        out("")
+else:
+    out("")

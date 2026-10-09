@@ -1,0 +1,6 @@
+# Секреты. Скопируйте в .env (он в .gitignore) и заполните.
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+# Тестовые учётные данные для Maestro-флоу (см. maestro.env в qa.yaml)
+TEST_LOGIN=
+TEST_PASSWORD=

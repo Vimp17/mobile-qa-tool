@@ -1,0 +1,76 @@
+# Конфигурация qa-tool. Все параметры необязательны: не указанные берутся по умолчанию.
+# Значения вида ${VAR} подставляются из переменных окружения или файла .env рядом с qa.yaml.
+
+project:
+  name: "Mobile App"
+  environment: "TEST"
+  # Ожидаемый applicationId. Если пришла сборка с другим пакетом (dev-флейвор, чужое приложение),
+  # проверка S01 провалится. Очень рекомендуется заполнить.
+  expected_app_id: ""
+  # release — строгие правила (debuggable, отладочная подпись, тестовые стенды = провал).
+  # debug — те же находки только информируют. Можно переопределить: qa check app.apk --build-type debug
+  build_type: release
+
+paths:
+  runs_dir: qa_runs            # сюда складываются прогоны: отчёт, скриншоты, logcat, summary.json
+  flows_dir: .maestro/smoke    # Maestro-флоу
+
+static:
+  min_target_sdk: 36           # требование Google Play для обновлений с 31.08.2026
+  min_sdk_floor: 0             # >0 — предупреждать, если minSdk ниже согласованного
+  max_apk_size_mb: 150
+  size_growth_warn_pct: 10     # предупреждать, если APK вырос больше чем на N% к прошлой сборке
+  cert_expiry_warn_days: 30
+  expected_locales: []         # например: [ru, en] — проверит, что строки переведены
+  # Подстроки адресов, которых не должно быть в release (тестовые стенды, моки).
+  forbidden_url_patterns: [staging, stage., dev., test., localhost, 10.0.2.2, ngrok]
+  # Понизить/повысить статус отдельных проверок: FAIL | WARN | INFO | SKIP
+  severity_overrides: {}
+  #  S10: INFO     # allowBackup у нас осознанно включён
+  #  S11: INFO
+
+device:
+  enabled: true
+  serial: ""                   # пусто — первый доступный эмулятор/устройство
+  boot_timeout_sec: 120
+  clean_install: true          # удалить приложение перед установкой — чистое состояние
+  grant_permissions: true      # adb install -g: выдать runtime-разрешения сразу
+  launch_runs: 3               # холодный старт меряется N раз, берётся медиана
+  settle_sec: 5                # пауза после старта перед проверкой «процесс жив»
+  cold_start_warn_ms: 2000
+  cold_start_fail_ms: 5000
+  monkey_events: 500           # 0 — отключить monkey-стресс
+  monkey_throttle_ms: 100
+  monkey_seed: 42              # одинаковый seed → воспроизводимая последовательность действий
+
+maestro:
+  enabled: true
+  include_tags: []             # например: [smoke]
+  exclude_tags: []
+  retries: 1                   # перезапуск упавших флоу: прошёл со 2-й попытки → «нестабилен», а не баг
+  timeout_sec: 1800
+  env: {}                      # доп. переменные во флоу: {LOGIN: "${TEST_LOGIN}", PASSWORD: "${TEST_PASSWORD}"}
+                               # MAESTRO_APP_ID и APP_ID подставляются из APK автоматически
+
+verdict:
+  blocker_priorities: [P0]     # падение тестов этих приоритетов = «Не принимать»
+  require_device: true         # без запуска на устройстве вердикт не лучше «с замечаниями»
+
+report:
+  embed_images: true           # скриншоты внутри HTML — отчёт одним файлом
+  image_width: 360
+  history_size: 15
+  open_after_run: false        # открывать отчёт в браузере после прогона
+
+google_sheets:
+  enabled: false               # инструкция: docs/GOOGLE_SHEETS.md
+  credentials_file: service_account.json
+  spreadsheet: ""              # ID таблицы или ссылка https://docs.google.com/spreadsheets/d/...
+  runs_worksheet: "Прогоны"
+  checks_worksheet: "Проверки"
+
+telegram:
+  enabled: false
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  chat_id: "${TELEGRAM_CHAT_ID}"
+  send_report_file: true

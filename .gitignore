@@ -1,0 +1,12 @@
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+.env
+service_account.json
+qa_runs/
+qa_demo/
+.pytest_cache/
+build/
+dist/
+*.apk

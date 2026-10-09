@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+name: SMOKE-002 Логин
+tags: [smoke]
+properties:
+  testCaseId: "SMOKE-002"
+  priority: "P0"
+---
+- launchApp:
+    clearState: true
+# Логин и пароль берутся из qa.yaml → maestro.env (а туда — из .env), не храните их во флоу.
+# - tapOn:
+#     id: "login_input"
+# - inputText: ${LOGIN}
+# - tapOn:
+#     id: "password_input"
+# - inputText: ${PASSWORD}
+# - tapOn: "Войти"
+# - assertVisible: "Главная"
+- takeScreenshot: SMOKE-002_after_login

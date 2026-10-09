@@ -1,0 +1,14 @@
+# appId подставляется автоматически из APK (qa check передаёт -e MAESTRO_APP_ID=...)
+appId: ${MAESTRO_APP_ID}
+name: SMOKE-001 Запуск приложения
+tags: [smoke, critical]
+properties:
+  testCaseId: "SMOKE-001"   # ID из вашей TMS — попадёт в отчёт и таблицу
+  priority: "P0"            # P0 упал → вердикт «Не принимать»
+---
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+# Замените на текст/ID элемента первого экрана вашего приложения:
+# - assertVisible: "Войти"
+- takeScreenshot: SMOKE-001_first_screen

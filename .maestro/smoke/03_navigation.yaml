@@ -1,0 +1,14 @@
+appId: ${MAESTRO_APP_ID}
+name: SMOKE-003 Основная навигация
+tags: [smoke]
+properties:
+  testCaseId: "SMOKE-003"
+  priority: "P1"
+---
+- launchApp
+# Пройдите по вкладкам нижнего меню и проверьте, что экраны открываются:
+# - tapOn: "Каталог"
+# - assertVisible: "Поиск"
+# - tapOn: "Профиль"
+# - assertVisible: "Выйти"
+- takeScreenshot: SMOKE-003_navigation

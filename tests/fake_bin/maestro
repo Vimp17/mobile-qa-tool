@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Фейковый Maestro: SMOKE-002 всегда падает, SMOKE-003 падает только в первый раз (flaky)."""
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+if "--device" in args:
+    i = args.index("--device")
+    args = args[:i] + args[i + 2:]
+assert args[0] == "test", args
+output = Path(args[args.index("--output") + 1])
+out_dir = Path(args[args.index("--test-output-dir") + 1])
+targets = [a for a in args[1:] if a.endswith((".yaml", ".yml")) or Path(a).is_dir()]
+state = Path(os.getenv("FAKE_MAESTRO_STATE", "/tmp/fake_maestro_state"))
+
+files = []
+for t in targets:
+    p = Path(t)
+    files += sorted(p.glob("*.yaml")) if p.is_dir() else [p]
+files = [f for f in files if f.name != "config.yaml"]
+
+cases = []
+for f in files:
+    import yaml
+    header = next(yaml.safe_load_all(f.read_text(encoding="utf-8"))) or {}
+    name = header.get("name", f.stem)
+    fail = None
+    if "SMOKE-002" in name:
+        fail = 'Assertion is false: "Home" is visible'
+    if "SMOKE-003" in name:
+        if not state.exists():
+            state.write_text("1")
+            fail = "Element not found: Text matching regex: Logout"
+    if fail:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / f"screenshot-❌-1728470000-({name}).png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    cases.append((name, fail))
+
+output.parent.mkdir(parents=True, exist_ok=True)
+xml = ['<?xml version="1.0" encoding="UTF-8"?>', f'<testsuites><testsuite name="Test Suite" tests="{len(cases)}" failures="{sum(1 for _, f in cases if f)}">']
+for name, fail in cases:
+    xml.append(f'<testcase id="{name}" name="{name}" classname="{name}" time="3.5">')
+    if fail:
+        xml.append(f'<failure message="{fail.replace(chr(34), "&quot;")}"/>')
+    xml.append("</testcase>")
+xml.append("</testsuite></testsuites>")
+output.write_text("\n".join(xml), encoding="utf-8")
+sys.exit(1 if any(f for _, f in cases) else 0)
